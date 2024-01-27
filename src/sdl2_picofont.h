@@ -64,7 +64,7 @@ typedef struct font_ctx
  * \param renderer	Renderer of the window.
  * \return Font context, else error. Use SDL_GetError().
  */
-font_ctx *FontStartup(SDL_Renderer *renderer);
+font_ctx *font_startup(SDL_Renderer *renderer);
 
 /**
  * Prints a string to the SDL2 renderer.
@@ -76,7 +76,7 @@ font_ctx *FontStartup(SDL_Renderer *renderer);
  * \param dstscale	Location and scale of text. (0,0) x1 if NULL.
  * \return	0 on success, else error. Use SDL_GetError().
  */
-int FontPrintToRenderer(font_ctx *const ctx, const char *text,
+int font_print_to_renderer(font_ctx *const ctx, const char *text,
                         const SDL_Rect *dstscale);
 
 /**
@@ -92,4 +92,4 @@ void FontDrawSize(const unsigned text_len, unsigned *w, unsigned *h);
 /**
  * Deletes font context.
  */
-void FontExit(font_ctx *ctx);
+void font_exit(font_ctx *ctx);

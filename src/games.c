@@ -26,8 +26,8 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
     struct dirent *entry = NULL;
     while ((entry = readdir(directory)) != NULL)
     {
-        char full_name[PATH_MAX] = {0};
-        snprintf(full_name, PATH_MAX, "%s/%s", path, entry->d_name);
+        char full_path[PATH_MAX] = {0};
+        snprintf(full_path, PATH_MAX, "%s/%s", path, entry->d_name);
 
         if (entry->d_type == DT_DIR)
         {
@@ -38,11 +38,11 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
                 if (memcmp(entry->d_name, "NP", 2) != 0 && entry->d_name[0] != 'B')
                     continue;
 
-                SDL_Log("Found game: %s, full path: %s", entry->d_name, full_name);
+                SDL_Log("Found game: %s, full path: %s", entry->d_name, full_path);
 
                 char param_sfo_path[PATH_MAX] = {0};
                 // Get the path to the PARAM.SFO file
-                snprintf(param_sfo_path, PATH_MAX, "%s/PARAM.SFO", full_name);
+                snprintf(param_sfo_path, PATH_MAX, "%s/PARAM.SFO", full_path);
 
                 // Try to get the title of the game
                 char *title = get_title(param_sfo_path);
@@ -54,7 +54,7 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
                 }
 
                 // Add the game to the list
-                game_list_entry *next_entry = game_list_entry_create(strdup(title), strdup(entry->d_name), strdup(full_name));
+                game_list_entry *next_entry = game_list_entry_create(strdup(title), strdup(entry->d_name), strdup(full_path));
 
                 // If the list isn't empty, add the entry to the end of the list
                 if (*list != NULL)

@@ -42,30 +42,30 @@ char *get_scene_name(STATE_SCENE scene)
 typedef struct state_t
 {
     int selection;
-    bool lastUp;
-    bool lastDown;
-    bool lastCross;
-    bool lastCircle;
-    uint32_t gameCount;
+    bool last_up;
+    bool last_down;
+    bool last_cross;
+    bool last_circle;
+    uint32_t game_count;
     game_list_entry *games;
     STATE_SCENE scene;
-    bool crossPressed;
-    bool circlePressed;
+    bool cross_pressed;
+    bool circle_pressed;
 } state_t;
 
-int handleControllerInput(state_t *state, bool *isPadConnected)
+int handleControllerInput(state_t *state, bool *is_pad_connected)
 {
-    padInfo2 padInfo;
+    padInfo2 pad_info;
 
     // Get the pad info
-    if (ioPadGetInfo2(&padInfo) != 0)
+    if (ioPadGetInfo2(&pad_info) != 0)
     {
         SDL_Log("Unable to get pad info");
         return -1;
     }
 
     // If it claims there is a pad connected
-    if (padInfo.port_status[0])
+    if (pad_info.port_status[0])
     {
         padData data;
 
@@ -73,40 +73,40 @@ int handleControllerInput(state_t *state, bool *isPadConnected)
         if (ioPadGetData(0, &data) == 0)
         {
             // If the user presses down, increment the selection
-            if (data.BTN_DOWN && !state->lastDown)
+            if (data.BTN_DOWN && !state->last_down)
             {
                 state->selection++;
-                if (state->selection >= state->gameCount)
+                if (state->selection >= state->game_count)
                     state->selection = 0;
             }
 
             // If the user presses up, decrement the selection
-            if (data.BTN_UP && !state->lastUp)
+            if (data.BTN_UP && !state->last_up)
             {
                 state->selection--;
                 if (state->selection < 0)
-                    state->selection = state->gameCount - 1;
+                    state->selection = state->game_count - 1;
             }
 
             // If the user presses cross, set the crossPressed flag
-            if (data.BTN_CROSS && !state->lastCross)
-                state->crossPressed = true;
+            if (data.BTN_CROSS && !state->last_cross)
+                state->cross_pressed = true;
 
             // If the user presses circle, set the circlePressed flag
-            if (data.BTN_CIRCLE && !state->lastCircle)
-                state->circlePressed = true;
+            if (data.BTN_CIRCLE && !state->last_circle)
+                state->circle_pressed = true;
 
             // Update our lastDown and lastUp variables
-            state->lastDown = data.BTN_DOWN;
-            state->lastUp = data.BTN_UP;
-            state->lastCross = data.BTN_CROSS;
-            state->lastCircle = data.BTN_CIRCLE;
+            state->last_down = data.BTN_DOWN;
+            state->last_up = data.BTN_UP;
+            state->last_cross = data.BTN_CROSS;
+            state->last_circle = data.BTN_CIRCLE;
 
             // Clear the pad buffer
             ioPadClearBuf(0);
 
             // Set the pad as definitely connected
-            (*isPadConnected) = true;
+            (*is_pad_connected) = true;
         }
     }
 
@@ -159,7 +159,7 @@ int main()
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
     // Initialize our font renderer
-    font_ctx *font = FontStartup(renderer);
+    font_ctx *font = font_startup(renderer);
 
     // Initialize the state of the app
     state_t state = {0};
@@ -168,7 +168,7 @@ int main()
     state.scene = STATE_SCENE_SELECT_GAME;
 
     // Iterate over the installed games, and get their info
-    if (iterate_games("/dev_hdd0/game", &state.games, &state.gameCount) != 0)
+    if (iterate_games("/dev_hdd0/game", &state.games, &state.game_count) != 0)
     {
         SDL_Log("Unable to iterate games");
         return 1;
@@ -195,7 +195,7 @@ int main()
         SDL_RenderClear(renderer);
 
         // Set the initial state of the text rendering
-        SDL_Rect dstscale = {.x = 10, .y = 10, .h = 4, .w = 3};
+        SDL_Rect font_state = {.x = 10, .y = 10, .h = 4, .w = 3};
 
         // Set the draw color to white, this doesn't do anything, but it's here for goodness sake
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -204,18 +204,18 @@ int main()
         snprintf(title, 256, "RefresherPS3 - %s", get_scene_name(state.scene));
 
         // Draw the title
-        FontPrintToRenderer(font, title, &dstscale);
+        font_print_to_renderer(font, title, &font_state);
 
         // Move the text down by the height of the text
-        dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+        font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
         // Set the scale to 1
-        dstscale.w = 1;
-        dstscale.h = 1;
+        font_state.w = 1;
+        font_state.h = 1;
 
         // Handle controller input
-        bool isPadConnected = false;
-        if (handleControllerInput(&state, &isPadConnected) != 0)
+        bool is_pad_connected = false;
+        if (handleControllerInput(&state, &is_pad_connected) != 0)
         {
             SDL_Log("Unable to handle controller input");
             return 1;
@@ -231,7 +231,7 @@ int main()
             while (entry != NULL)
             {
                 // If the user presses cross on the selected game, switch to the server selection scene
-                if (state.selection == i && state.crossPressed)
+                if (state.selection == i && state.cross_pressed)
                 {
                     switch_scene(&state, STATE_SCENE_SELECT_SERVER);
                 }
@@ -242,9 +242,9 @@ int main()
                 snprintf(display_name, 256, "%s%s (%s) [%s]", i == state.selection ? ">>> " : "", entry->title, entry->title_id, entry->path);
 
                 // Draw the display name
-                FontPrintToRenderer(font, display_name, &dstscale);
+                font_print_to_renderer(font, display_name, &font_state);
                 // Move the text down by the height of the text
-                dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
                 // Move to the next item in the list
                 entry = entry->next;
@@ -257,51 +257,51 @@ int main()
         case STATE_SCENE_SELECT_SERVER:
         {
             // If the user presses circle, switch back to the game selection scene
-            if (state.circlePressed)
+            if (state.circle_pressed)
             {
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
             // Draw the display name
-            FontPrintToRenderer(font, "TODO", &dstscale);
+            font_print_to_renderer(font, "TODO", &font_state);
             // Move the text down by the height of the text
-            dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             break;
         }
         case STATE_SCENE_PATCHING:
         {
             // Draw the display name
-            FontPrintToRenderer(font, "TODO", &dstscale);
+            font_print_to_renderer(font, "TODO", &font_state);
             // Move the text down by the height of the text
-            dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             break;
         }
         case STATE_SCENE_DONE_PATCHING:
         {
             // If the user pressed circle, switch back to the game selection scene
-            if (state.circlePressed)
+            if (state.circle_pressed)
             {
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
             // Draw the display name
-            FontPrintToRenderer(font, "TODO", &dstscale);
+            font_print_to_renderer(font, "TODO", &font_state);
             // Move the text down by the height of the text
-            dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             break;
         }
         case STATE_SCENE_ERROR:
         {
             // If the user pressed circle, switch back to the game selection scene
-            if (state.circlePressed)
+            if (state.circle_pressed)
             {
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
             // Draw the display name
-            FontPrintToRenderer(font, "TODO", &dstscale);
+            font_print_to_renderer(font, "TODO", &font_state);
             // Move the text down by the height of the text
-            dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             break;
         }
         default:
@@ -312,15 +312,15 @@ int main()
         }
 
         // If the pad is not connected, display a message
-        if (!isPadConnected)
+        if (!is_pad_connected)
         {
-            SDL_Rect dstscale = {.x = 50, .y = 250, .h = 5, .w = 5};
-            FontPrintToRenderer(font, "No controller connected", &dstscale);
+            SDL_Rect font_state = {.x = 50, .y = 250, .h = 5, .w = 5};
+            font_print_to_renderer(font, "No controller connected", &font_state);
         }
 
         // Reset the crossPressed and circlePressed flags, since they are single press
-        state.crossPressed = false;
-        state.circlePressed = false;
+        state.cross_pressed = false;
+        state.circle_pressed = false;
 
         SDL_RenderPresent(renderer);
     }
@@ -331,7 +331,7 @@ int main()
         return 1;
     }
 
-    FontExit(font);
+    font_exit(font);
     SDL_Quit();
 
     return 0;

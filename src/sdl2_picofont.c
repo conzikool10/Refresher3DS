@@ -174,7 +174,7 @@ static const unsigned char bitmap_font[FONT_BITMAP_SIZE] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
 
-font_ctx *FontStartup(SDL_Renderer *renderer)
+font_ctx *font_startup(SDL_Renderer *renderer)
 {
     const SDL_Colour colours[2] = {
         {0x00, 0x00, 0x00, 0x00}, /* BG */
@@ -240,8 +240,8 @@ void FontDrawSize(const unsigned text_len, unsigned *w, unsigned *h)
     *h = FONT_CHAR_HEIGHT;
 }
 
-int FontPrintToRenderer(font_ctx *const ctx, const char *text,
-                        const SDL_Rect *dstscale)
+int font_print_to_renderer(font_ctx *const ctx, const char *text,
+                           const SDL_Rect *dstscale)
 {
     SDL_Rect font_rect, screen_rect;
     SDL_Rect dst;
@@ -302,7 +302,7 @@ int FontPrintToRenderer(font_ctx *const ctx, const char *text,
     return 0;
 }
 
-void FontExit(font_ctx *ctx)
+void font_exit(font_ctx *ctx)
 {
     if (ctx == NULL)
         return;
