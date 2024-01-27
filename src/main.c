@@ -1,15 +1,93 @@
 #include <SDL2/SDL.h>
 #include <stdbool.h>
 #include <lv2/spu.h>
+#include <stdio.h>
+#include <dirent.h>
+#include <stdint.h>
 
+#include "endian.h"
 #include "sdl2_picofont.h"
+#include "paramsfo.h"
+#include "game_list.h"
 
-const SDL_Colour white = {.r = 0xFF, .g = 0xFF, .b = 0xFF, .a = 0xFF};
-const SDL_Colour black = {.r = 0x00, .g = 0x00, .b = 0x00, .a = 0xFF};
-const SDL_Colour skyblue = {.r = 0x87, .g = 0xCE, .b = 0xEB, .a = 0xFF};
+#define PATH_MAX 256
+
+int iterate_games(const char *path, game_list_entry **list)
+{
+    DIR *directory = NULL;
+    if ((directory = opendir(path)) == NULL)
+    {
+        fprintf(stderr, "Can't open %s\n", path);
+        return -1;
+    }
+
+    // Initialize the list to NULL
+    (*list) = NULL;
+
+    game_list_entry *last_entry = NULL;
+
+    struct dirent *entry = NULL;
+    while ((entry = readdir(directory)) != NULL)
+    {
+        char full_name[PATH_MAX] = {0};
+        snprintf(full_name, PATH_MAX, "%s/%s", path, entry->d_name);
+
+        if (entry->d_type == DT_DIR)
+        {
+            // Skip over . and .. and non-9 character directories
+            if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0 && strlen(entry->d_name) == 9)
+            {
+                // Skip over non-games
+                if (memcmp(entry->d_name, "NP", 2) != 0 && entry->d_name[0] != 'B')
+                    continue;
+
+                SDL_Log("Found game: %s, full path: %s", entry->d_name, full_name);
+
+                char param_sfo_path[PATH_MAX] = {0};
+                // Get the path to the PARAM.SFO file
+                snprintf(param_sfo_path, PATH_MAX, "%s/PARAM.SFO", full_name);
+
+                // Try to get the title of the game
+                char *title = get_title(param_sfo_path);
+                // If it fails, skip over the game
+                if (title == NULL)
+                {
+                    SDL_Log("Unable to get title for %s", param_sfo_path);
+                    continue;
+                }
+
+                // Add the game to the list
+                game_list_entry *next_entry = game_list_entry_create(strdup(title), strdup(entry->d_name), strdup(full_name));
+
+                // If the list isn't empty, add the entry to the end of the list
+                if (*list != NULL)
+                {
+                    last_entry->next = next_entry;
+                    last_entry = next_entry;
+                }
+                // Otherwise, set the start of the list to the entry
+                else
+                {
+                    (*list) = next_entry;
+                    last_entry = next_entry;
+                }
+            }
+        }
+    }
+
+    closedir(directory);
+    return 0;
+}
 
 int main()
 {
+    game_list_entry *games;
+    if (iterate_games("/dev_hdd0/game", &games) != 0)
+    {
+        SDL_Log("Unable to iterate games");
+        return 1;
+    }
+
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -56,14 +134,28 @@ int main()
         dstscale.w = 1;
         dstscale.h = 1;
 
-        FontPrintToRenderer(font, "LittleBigPlanet (NPEA00241)", &dstscale);
-        dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+        game_list_entry *entry = games;
+        int i = 0;
+        while (entry != NULL)
+        {
+            char display_name[256] = {0};
+            snprintf(display_name, 256, "%s (%s)", entry->title, entry->title_id);
 
-        FontPrintToRenderer(font, ">>> LittleBigPlanet2 Digital Version (NPUA80662) <<<", &dstscale);
-        dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            FontPrintToRenderer(font, display_name, &dstscale);
+            dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            entry = entry->next;
 
-        FontPrintToRenderer(font, "LittleBigPlanet3 Digital Version (NPUA81116)", &dstscale);
-        dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+            i++;
+        }
+
+        // FontPrintToRenderer(font, "LittleBigPlanet (NPEA00241)", &dstscale);
+        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+
+        // FontPrintToRenderer(font, ">>> LittleBigPlanet2 Digital Version (NPUA80662) <<<", &dstscale);
+        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+
+        // FontPrintToRenderer(font, "LittleBigPlanet3 Digital Version (NPUA81116)", &dstscale);
+        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
 
         SDL_RenderPresent(renderer);
     }

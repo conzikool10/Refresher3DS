@@ -283,7 +283,9 @@ int FontPrintToRenderer(font_ctx *const ctx, const char *text,
         if (*text >= ' ' && *text <= '~')
             pos = *text - ' ';
         else
-            pos = '?' - ' ';
+            // Skip missing characters
+            continue;
+        // pos = '?' - ' ';
 
         font_rect.x = (pos % FONT_COLUMNS) * FONT_CHAR_WIDTH;
         font_rect.y = (pos / FONT_COLUMNS) * FONT_CHAR_HEIGHT;
