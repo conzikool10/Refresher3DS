@@ -31,6 +31,8 @@
 
 #include "sdl2_picofont.h"
 
+#include "assert.h"
+
 #define FONT_BITMAP_WIDTH 144
 #define FONT_BITMAP_HEIGHT 90
 #define FONT_BITMAP_SIZE ((FONT_BITMAP_HEIGHT * FONT_BITMAP_WIDTH) / 8)
@@ -176,21 +178,17 @@ static const unsigned char bitmap_font[FONT_BITMAP_SIZE] = {
 
 font_ctx *font_startup(SDL_Renderer *renderer)
 {
+    ASSERT_NONZERO(renderer, "Renderer is NULL.");
+
     const SDL_Colour colours[2] = {
         {0x00, 0x00, 0x00, 0x00}, /* BG */
         {0xFF, 0xFF, 0xFF, 0xFF}  /* FG */
     };
     SDL_Surface *bmp_surf;
     font_ctx *ctx = SDL_malloc(sizeof(font_ctx));
+    ASSERT_NONZERO(ctx, "Failed to allocate memory for font context.");
     Uint8 *pixels = SDL_malloc(FONT_BITMAP_SIZE);
-
-    SDL_assert(renderer != NULL);
-
-    if (ctx == NULL || pixels == NULL)
-    {
-        SDL_SetError("Unable to allocate memory.");
-        goto err;
-    }
+    ASSERT_NONZERO(pixels, "Failed to allocate memory for font bitmap.");
 
     SDL_memcpy(pixels, bitmap_font, FONT_BITMAP_SIZE);
     bmp_surf = SDL_CreateRGBSurfaceFrom(pixels,
@@ -246,9 +244,12 @@ int font_print_to_renderer(font_ctx *const ctx, const char *text,
     SDL_Rect font_rect, screen_rect;
     SDL_Rect dst;
 
-    SDL_assert(ctx != NULL);
-    SDL_assert(text != NULL);
-    SDL_assert(*text != '\0');
+    ASSERT_NONZERO(ctx, "Font context is NULL.");
+    ASSERT_NONZERO(text, "Text is NULL.");
+
+    // If the text is empty, do nothing
+    if (*text == 0)
+        return 0;
 
     if (dstscale == NULL)
     {

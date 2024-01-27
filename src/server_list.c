@@ -1,8 +1,12 @@
 #include "server_list.h"
 
+#include "assert.h"
+
 server_list_entry *server_list_entry_create(char *name, char *url, bool patch_digest)
 {
     server_list_entry *entry = (server_list_entry *)malloc(sizeof(server_list_entry));
+    ASSERT_NONZERO(entry, "Failed to allocate memory for server_list_entry");
+
     entry->name = strdup(name);
     entry->url = strdup(url);
     entry->patch_digest = patch_digest;

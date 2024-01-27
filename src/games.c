@@ -4,20 +4,18 @@
 
 #include "paramsfo.h"
 #include "game_list.h"
+#include "assert.h"
 
 #define PATH_MAX 256
 
 int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
 {
     DIR *directory = NULL;
-    if ((directory = opendir(path)) == NULL)
-    {
-        fprintf(stderr, "Can't open %s\n", path);
-        return -1;
-    }
+    directory = opendir(path);
+    ASSERT_NONZERO(directory, "Failed to open game directory");
 
+    // Initialize the count to 0
     (*count) = 0;
-
     // Initialize the list to NULL
     (*list) = NULL;
 

@@ -12,6 +12,8 @@
 #include "idps.h"
 #include "games.h"
 
+#include "assert.h"
+
 typedef enum STATE_SCENE
 {
     STATE_SCENE_SELECT_GAME,
@@ -53,6 +55,7 @@ typedef struct state_t
     STATE_SCENE scene;
     bool cross_pressed;
     bool circle_pressed;
+    game_list_entry *selected_game;
 } state_t;
 
 int handleControllerInput(state_t *state, bool *is_pad_connected)
@@ -60,11 +63,7 @@ int handleControllerInput(state_t *state, bool *is_pad_connected)
     padInfo2 pad_info;
 
     // Get the pad info
-    if (ioPadGetInfo2(&pad_info) != 0)
-    {
-        SDL_Log("Unable to get pad info");
-        return -1;
-    }
+    ASSERT_ZERO(ioPadGetInfo2(&pad_info), "Unable to get pad info");
 
     // If it claims there is a pad connected
     if (pad_info.port_status[0])
@@ -126,36 +125,21 @@ int main()
     char idps[16];
     char psid[16];
 
-    if (get_idps_psid(idps, psid) != 0)
-    {
-        SDL_Log("Unable to get IDPS");
-        return 1;
-    }
+    // Get the IDPS and PSID
+    ASSERT_ZERO(get_idps_psid(idps, psid), "Unable to get IDPS");
 
     SDL_Log("IDPS: %x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x", idps[0], idps[1], idps[2], idps[3], idps[4], idps[5], idps[6], idps[7], idps[8], idps[9], idps[10], idps[11], idps[12], idps[13], idps[14], idps[15]);
     SDL_Log("PSID: %x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x", psid[0], psid[1], psid[2], psid[3], psid[4], psid[5], psid[6], psid[7], psid[8], psid[9], psid[10], psid[11], psid[12], psid[13], psid[14], psid[15]);
 
     // Initialize SDL with Video support
-    if (SDL_Init(SDL_INIT_VIDEO) != 0)
-    {
-        SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        return 1;
-    }
+    ASSERTSDL_ZERO(SDL_Init(SDL_INIT_VIDEO), "Unable to initialize SDL");
 
     // Create a new window
     SDL_Window *window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    if (window == NULL)
-    {
-        SDL_Log("Unable to create window: %s", SDL_GetError());
-        return 1;
-    }
+    ASSERTSDL_NONZERO(window, "Unable to create window");
 
     // Initialize the gamepad
-    if (ioPadInit(1) != 0)
-    {
-        SDL_Log("Unable to initialize pad");
-        return 1;
-    }
+    ASSERT_ZERO(ioPadInit(1), "Unable to initialize pad");
 
     // Create a new renderer
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
@@ -170,11 +154,7 @@ int main()
     state.scene = STATE_SCENE_SELECT_GAME;
 
     // Iterate over the installed games, and get their info
-    if (iterate_games("/dev_hdd0/game", &state.games, &state.game_count) != 0)
-    {
-        SDL_Log("Unable to iterate games");
-        return 1;
-    }
+    ASSERT_ZERO(iterate_games("/dev_hdd0/game", &state.games, &state.game_count), "Unable to iterate games");
 
     state.servers = server_list_entry_create("Refresh", "http://refresh.jvyden.xyz:2095/lbp", true);
     state.servers->next = server_list_entry_create("Beyley's Desktop", "http://192.168.69.100:10061/lbp", true);
@@ -238,6 +218,7 @@ int main()
                 // If the user presses cross on the selected game, switch to the server selection scene
                 if (state.selection == i && state.cross_pressed)
                 {
+                    state.selected_game = entry;
                     switch_scene(&state, STATE_SCENE_SELECT_SERVER);
                 }
 
@@ -261,6 +242,13 @@ int main()
         }
         case STATE_SCENE_SELECT_SERVER:
         {
+            // This should never happen
+            if (state.selected_game == NULL)
+            {
+                SDL_Log("Selected game is NULL");
+                return 1;
+            }
+
             // If the user presses circle, switch back to the game selection scene
             if (state.circle_pressed)
             {
@@ -275,7 +263,7 @@ int main()
                 // If the user presses cross on the selected game, switch to the server selection scene
                 if (state.selection == i && state.cross_pressed)
                 {
-                    switch_scene(&state, STATE_SCENE_SELECT_SERVER);
+                    switch_scene(&state, STATE_SCENE_PATCHING);
                 }
 
                 char display_name[256] = {0};

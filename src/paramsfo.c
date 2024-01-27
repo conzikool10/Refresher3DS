@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "endian.h"
+#include "assert.h"
 
 // https://psdevwiki.com/ps3/PARAM.SFO#Internal_Structure
 struct sfo_header
@@ -26,11 +27,7 @@ struct sfo_index_table_entry
 char *get_title(char *path)
 {
     FILE *file = fopen(path, "rb");
-    if (file == NULL)
-    {
-        SDL_Log("Unable to open %s", path);
-        return NULL;
-    }
+    ASSERT_NONZERO(file, "Unable to open file");
 
     struct sfo_header header = {0};
     fread(&header, sizeof(struct sfo_header), 1, file);
@@ -87,5 +84,6 @@ char *get_title(char *path)
     SDL_Log("Unable to find TITLE");
 
     fclose(file);
+
     return NULL;
 }
