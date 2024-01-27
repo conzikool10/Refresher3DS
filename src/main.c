@@ -20,6 +20,25 @@ typedef enum STATE_SCENE
     STATE_SCENE_ERROR
 } STATE_SCENE;
 
+char *get_scene_name(STATE_SCENE scene)
+{
+    switch (scene)
+    {
+    case STATE_SCENE_SELECT_GAME:
+        return "Select Game";
+    case STATE_SCENE_SELECT_SERVER:
+        return "Select Server";
+    case STATE_SCENE_PATCHING:
+        return "Patching";
+    case STATE_SCENE_DONE_PATCHING:
+        return "Done Patching";
+    case STATE_SCENE_ERROR:
+        return "Error";
+    default:
+        return "Unknown";
+    }
+}
+
 typedef struct state_t
 {
     int selection;
@@ -180,8 +199,12 @@ int main()
 
         // Set the draw color to white, this doesn't do anything, but it's here for goodness sake
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+
+        char title[256] = {0};
+        snprintf(title, 256, "RefresherPS3 - %s", get_scene_name(state.scene));
+
         // Draw the title
-        FontPrintToRenderer(font, "RefresherPS3", &dstscale);
+        FontPrintToRenderer(font, title, &dstscale);
 
         // Move the text down by the height of the text
         dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
