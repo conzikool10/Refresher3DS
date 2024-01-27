@@ -1,0 +1,9 @@
+build/main.d
+build/main.o
+build/RefresherPS3.elf
+build/sdl2_picofont.d
+build/sdl2_picofont.o
+.vscode/settings.json
+RefresherPS3.elf
+RefresherPS3.fake.self
+RefresherPS3.self
