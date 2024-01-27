@@ -84,16 +84,17 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
     return 0;
 }
 
+typedef struct state_t
+{
+    int selection;
+    bool lastUp;
+    bool lastDown;
+    uint32_t gameCount;
+    game_list_entry *games;
+} state_t;
+
 int main()
 {
-    uint32_t game_count = 0;
-    game_list_entry *games;
-    if (iterate_games("/dev_hdd0/game", &games, &game_count) != 0)
-    {
-        SDL_Log("Unable to iterate games");
-        return 1;
-    }
-
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
@@ -107,17 +108,10 @@ int main()
         return 1;
     }
 
+    // Initialize the pad
     if (ioPadInit(1) != 0)
     {
         SDL_Log("Unable to initialize pad");
-        return 1;
-    }
-
-    padInfo2 padInfo;
-
-    if (ioPadGetInfo2(&padInfo) != 0)
-    {
-        SDL_Log("Unable to get pad info");
         return 1;
     }
 
@@ -128,10 +122,13 @@ int main()
     SDL_Event ev;
     bool quit = false;
 
-    int selection = 0;
+    state_t state = {0};
 
-    bool lastDown = false;
-    bool lastUp = false;
+    if (iterate_games("/dev_hdd0/game", &state.games, &state.gameCount) != 0)
+    {
+        SDL_Log("Unable to iterate games");
+        return 1;
+    }
 
     while (!quit)
     {
@@ -159,12 +156,12 @@ int main()
         dstscale.w = 1;
         dstscale.h = 1;
 
-        game_list_entry *entry = games;
+        game_list_entry *entry = state.games;
         int i = 0;
         while (entry != NULL)
         {
             char display_name[256] = {0};
-            snprintf(display_name, 256, "%s%s (%s)", i == selection ? ">>> " : "", entry->title, entry->title_id);
+            snprintf(display_name, 256, "%s%s (%s)", i == state.selection ? ">>> " : "", entry->title, entry->title_id);
 
             FontPrintToRenderer(font, display_name, &dstscale);
             dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
@@ -173,57 +170,21 @@ int main()
             i++;
         }
 
-        if (ioPadGetInfo2(&padInfo) != 0)
+        // We keep track of this manually because port_status is not always correct
+        bool isPadConnected = false;
+
+        if (handleControllerInput(&state, &isPadConnected) != 0)
         {
-            SDL_Log("Unable to get pad info");
+            SDL_Log("Unable to handle controller input");
             return 1;
         }
 
-        bool isPadConnected = false;
-
-        // If there is a controller connected
-        if (padInfo.port_status[0])
-        {
-            padData data;
-            if (ioPadGetData(0, &data) == 0)
-            {
-                if (data.BTN_DOWN && !lastDown)
-                {
-                    selection++;
-                    if (selection >= game_count)
-                        selection = 0;
-                }
-
-                if (data.BTN_UP && !lastUp)
-                {
-                    selection--;
-                    if (selection < 0)
-                        selection = game_count - 1;
-                }
-
-                lastDown = data.BTN_DOWN;
-                lastUp = data.BTN_UP;
-
-                ioPadClearBuf(0);
-
-                isPadConnected = true;
-            }
-        }
-        // If not
+        // If the pad is not connected, display a message
         if (!isPadConnected)
         {
             SDL_Rect dstscale = {.x = 50, .y = 250, .h = 5, .w = 5};
             FontPrintToRenderer(font, "No controller connected", &dstscale);
         }
-
-        // FontPrintToRenderer(font, "LittleBigPlanet (NPEA00241)", &dstscale);
-        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
-
-        // FontPrintToRenderer(font, ">>> LittleBigPlanet2 Digital Version (NPUA80662) <<<", &dstscale);
-        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
-
-        // FontPrintToRenderer(font, "LittleBigPlanet3 Digital Version (NPUA81116)", &dstscale);
-        // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
 
         SDL_RenderPresent(renderer);
     }
@@ -238,4 +199,50 @@ int main()
     SDL_Quit();
 
     return 0;
+}
+
+int handleControllerInput(state_t *state, bool *isPadConnected)
+{
+    padInfo2 padInfo;
+
+    if (ioPadGetInfo2(&padInfo) != 0)
+    {
+        SDL_Log("Unable to get pad info");
+        return 1;
+    }
+
+    // If there is a controller connected
+    if (padInfo.port_status[0])
+    {
+        padData data;
+        // If we can get the data from the controller
+        if (ioPadGetData(0, &data) == 0)
+        {
+            // If the user presses down, increment the selection
+            if (data.BTN_DOWN && !state->lastDown)
+            {
+                state->selection++;
+                if (state->selection >= state->gameCount)
+                    state->selection = 0;
+            }
+
+            // If the user presses up, decrement the selection
+            if (data.BTN_UP && !state->lastUp)
+            {
+                state->selection--;
+                if (state->selection < 0)
+                    state->selection = state->gameCount - 1;
+            }
+
+            // Update our lastDown and lastUp variables
+            state->lastDown = data.BTN_DOWN;
+            state->lastUp = data.BTN_UP;
+
+            // Clear the pad buffer
+            ioPadClearBuf(0);
+
+            // Set the pad as definitely connected
+            (*isPadConnected) = true;
+        }
+    }
 }
