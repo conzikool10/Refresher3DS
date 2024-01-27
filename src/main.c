@@ -95,12 +95,14 @@ typedef struct state_t
 
 int main()
 {
+    // Initialize SDL with Video support
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
         return 1;
     }
 
+    // Create a new window
     SDL_Window *window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (window == NULL)
     {
@@ -108,28 +110,32 @@ int main()
         return 1;
     }
 
-    // Initialize the pad
+    // Initialize the gamepad
     if (ioPadInit(1) != 0)
     {
         SDL_Log("Unable to initialize pad");
         return 1;
     }
 
+    // Create a new renderer
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
+    // Initialize our font renderer
     font_ctx *font = FontStartup(renderer);
 
-    SDL_Event ev;
-    bool quit = false;
-
+    // Initialize the state of the app
     state_t state = {0};
 
+    // Iterate over the installed games, and get their info
     if (iterate_games("/dev_hdd0/game", &state.games, &state.gameCount) != 0)
     {
         SDL_Log("Unable to iterate games");
         return 1;
     }
 
+    // Loop until the user closes the app
+    SDL_Event ev;
+    bool quit = false;
     while (!quit)
     {
         // Poll all the new events
@@ -138,41 +144,53 @@ int main()
             // If the user closes the app,
             if (ev.type == SDL_QUIT)
             {
-                // Quit the app
+                // Mark the app to quit on the next loop
                 quit = true;
             }
         }
 
+        // Clear the screen to black
         SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
         SDL_RenderClear(renderer);
 
+        // Set the initial state of the text rendering
         SDL_Rect dstscale = {.x = 10, .y = 10, .h = 4, .w = 3};
 
+        // Set the draw color to white, this doesn't do anything, but it's here for goodness sake
         SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-        FontPrintToRenderer(font, "Refresher", &dstscale);
+        // Draw the title
+        FontPrintToRenderer(font, "RefresherPS3", &dstscale);
 
+        // Move the text down by the height of the text
         dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
 
+        // Set the scale to 1
         dstscale.w = 1;
         dstscale.h = 1;
 
+        // Draw the game list
         game_list_entry *entry = state.games;
         int i = 0;
         while (entry != NULL)
         {
             char display_name[256] = {0};
-            snprintf(display_name, 256, "%s%s (%s)", i == state.selection ? ">>> " : "", entry->title, entry->title_id);
 
+            // Make a pretty display name
+            snprintf(display_name, 256, "%s%s (%s) [%s]", i == state.selection ? ">>> " : "", entry->title, entry->title_id, entry->path);
+
+            // Draw the display name
             FontPrintToRenderer(font, display_name, &dstscale);
+            // Move the text down by the height of the text
             dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
+
+            // Move to the next item in the list
             entry = entry->next;
 
             i++;
         }
 
-        // We keep track of this manually because port_status is not always correct
+        // Handle controller input
         bool isPadConnected = false;
-
         if (handleControllerInput(&state, &isPadConnected) != 0)
         {
             SDL_Log("Unable to handle controller input");
@@ -205,17 +223,19 @@ int handleControllerInput(state_t *state, bool *isPadConnected)
 {
     padInfo2 padInfo;
 
+    // Get the pad info
     if (ioPadGetInfo2(&padInfo) != 0)
     {
         SDL_Log("Unable to get pad info");
-        return 1;
+        return -1;
     }
 
-    // If there is a controller connected
+    // If it claims there is a pad connected
     if (padInfo.port_status[0])
     {
         padData data;
-        // If we can get the data from the controller
+
+        // Try to get the pad data
         if (ioPadGetData(0, &data) == 0)
         {
             // If the user presses down, increment the selection
