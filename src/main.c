@@ -206,6 +206,8 @@ int main()
             return 1;
         }
 
+        bool can_interact = is_pad_connected;
+
         switch (state.scene)
         {
         case STATE_SCENE_SELECT_GAME:
@@ -290,6 +292,9 @@ int main()
             font_print_to_renderer(font, "TODO", &font_state);
             // Move the text down by the height of the text
             font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+            can_interact = false;
+
             break;
         }
         case STATE_SCENE_DONE_PATCHING:
@@ -325,6 +330,16 @@ int main()
             SDL_Log("Unknown scene: %d", state.scene);
             return 1;
         }
+        }
+
+        if (can_interact)
+        {
+            // Move the text down by the height of the text
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+            // Draw the display name
+            font_print_to_renderer(font, "Press X to select, press O to go back.", &font_state);
+            // Move the text down by the height of the text
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
         }
 
         // If the pad is not connected, display a message
