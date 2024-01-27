@@ -13,24 +13,14 @@ int main()
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
     {
         SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
-        *((char *)1) = 1;
+        return 1;
     }
-
-    // *((char *)10) = 1;
-
-    // if (SDL_VideoInit(NULL) != 0)
-    // {
-    //     SDL_Log("Unable to initialize SDL Video: %s", SDL_GetError());
-    //     *((char *)2) = 1;
-    // }
-
-    // *((char *)11) = 1;
 
     SDL_Window *window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (window == NULL)
     {
         SDL_Log("Unable to create window: %s", SDL_GetError());
-        *((char *)3) = 1;
+        return 1;
     }
 
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
@@ -42,12 +32,14 @@ int main()
 
     while (!quit)
     {
+        // Poll all the new events
         while (SDL_PollEvent(&ev))
         {
+            // If the user closes the app,
             if (ev.type == SDL_QUIT)
             {
+                // Quit the app
                 quit = true;
-                // *((char *)4) = 1;
             }
         }
 
