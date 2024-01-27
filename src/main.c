@@ -8,6 +8,7 @@
 #include "endian.h"
 #include "sdl2_picofont.h"
 #include "game_list.h"
+#include "server_list.h"
 #include "idps.h"
 #include "games.h"
 
@@ -48,6 +49,7 @@ typedef struct state_t
     bool last_circle;
     uint32_t game_count;
     game_list_entry *games;
+    server_list_entry *servers;
     STATE_SCENE scene;
     bool cross_pressed;
     bool circle_pressed;
@@ -174,6 +176,9 @@ int main()
         return 1;
     }
 
+    state.servers = server_list_entry_create("Refresh", "http://refresh.jvyden.xyz:2095/lbp", true);
+    state.servers->next = server_list_entry_create("Beyley's Desktop", "http://192.168.69.100:10061/lbp", true);
+
     // Loop until the user closes the app
     SDL_Event ev;
     bool quit = false;
@@ -262,10 +267,33 @@ int main()
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
-            // Draw the display name
-            font_print_to_renderer(font, "TODO", &font_state);
-            // Move the text down by the height of the text
-            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+            // Draw the server list
+            server_list_entry *entry = state.servers;
+            int i = 0;
+            while (entry != NULL)
+            {
+                // If the user presses cross on the selected game, switch to the server selection scene
+                if (state.selection == i && state.cross_pressed)
+                {
+                    switch_scene(&state, STATE_SCENE_SELECT_SERVER);
+                }
+
+                char display_name[256] = {0};
+
+                // Make a pretty display name
+                snprintf(display_name, 256, "%s%s (%s)", i == state.selection ? ">>> " : "", entry->name, entry->url);
+
+                // Draw the display name
+                font_print_to_renderer(font, display_name, &font_state);
+                // Move the text down by the height of the text
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+                // Move to the next item in the list
+                entry = entry->next;
+
+                i++;
+            }
+
             break;
         }
         case STATE_SCENE_PATCHING:
