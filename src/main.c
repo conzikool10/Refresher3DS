@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <dirent.h>
 #include <stdint.h>
+#include <io/pad.h>
 
 #include "endian.h"
 #include "sdl2_picofont.h"
@@ -12,7 +13,7 @@
 
 #define PATH_MAX 256
 
-int iterate_games(const char *path, game_list_entry **list)
+int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
 {
     DIR *directory = NULL;
     if ((directory = opendir(path)) == NULL)
@@ -20,6 +21,8 @@ int iterate_games(const char *path, game_list_entry **list)
         fprintf(stderr, "Can't open %s\n", path);
         return -1;
     }
+
+    (*count) = 0;
 
     // Initialize the list to NULL
     (*list) = NULL;
@@ -71,6 +74,8 @@ int iterate_games(const char *path, game_list_entry **list)
                     (*list) = next_entry;
                     last_entry = next_entry;
                 }
+
+                (*count)++;
             }
         }
     }
@@ -81,8 +86,9 @@ int iterate_games(const char *path, game_list_entry **list)
 
 int main()
 {
+    uint32_t game_count = 0;
     game_list_entry *games;
-    if (iterate_games("/dev_hdd0/game", &games) != 0)
+    if (iterate_games("/dev_hdd0/game", &games, &game_count) != 0)
     {
         SDL_Log("Unable to iterate games");
         return 1;
@@ -101,12 +107,31 @@ int main()
         return 1;
     }
 
+    if (ioPadInit(1) != 0)
+    {
+        SDL_Log("Unable to initialize pad");
+        return 1;
+    }
+
+    padInfo2 padInfo;
+
+    if (ioPadGetInfo2(&padInfo) != 0)
+    {
+        SDL_Log("Unable to get pad info");
+        return 1;
+    }
+
     SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
     font_ctx *font = FontStartup(renderer);
 
     SDL_Event ev;
     bool quit = false;
+
+    int selection = 0;
+
+    bool lastDown = false;
+    bool lastUp = false;
 
     while (!quit)
     {
@@ -139,13 +164,56 @@ int main()
         while (entry != NULL)
         {
             char display_name[256] = {0};
-            snprintf(display_name, 256, "%s (%s)", entry->title, entry->title_id);
+            snprintf(display_name, 256, "%s%s (%s)", i == selection ? ">>> " : "", entry->title, entry->title_id);
 
             FontPrintToRenderer(font, display_name, &dstscale);
             dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
             entry = entry->next;
 
             i++;
+        }
+
+        if (ioPadGetInfo2(&padInfo) != 0)
+        {
+            SDL_Log("Unable to get pad info");
+            return 1;
+        }
+
+        bool isPadConnected = false;
+
+        // If there is a controller connected
+        if (padInfo.port_status[0])
+        {
+            padData data;
+            if (ioPadGetData(0, &data) == 0)
+            {
+                if (data.BTN_DOWN && !lastDown)
+                {
+                    selection++;
+                    if (selection >= game_count)
+                        selection = 0;
+                }
+
+                if (data.BTN_UP && !lastUp)
+                {
+                    selection--;
+                    if (selection < 0)
+                        selection = game_count - 1;
+                }
+
+                lastDown = data.BTN_DOWN;
+                lastUp = data.BTN_UP;
+
+                ioPadClearBuf(0);
+
+                isPadConnected = true;
+            }
+        }
+        // If not
+        if (!isPadConnected)
+        {
+            SDL_Rect dstscale = {.x = 50, .y = 250, .h = 5, .w = 5};
+            FontPrintToRenderer(font, "No controller connected", &dstscale);
         }
 
         // FontPrintToRenderer(font, "LittleBigPlanet (NPEA00241)", &dstscale);
@@ -158,6 +226,12 @@ int main()
         // dstscale.y += FONT_CHAR_HEIGHT * dstscale.h;
 
         SDL_RenderPresent(renderer);
+    }
+
+    if (ioPadEnd() != 0)
+    {
+        SDL_Log("Unable to end pad");
+        return 1;
     }
 
     FontExit(font);
