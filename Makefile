@@ -7,18 +7,18 @@ include $(PSL1GHT)/ppu_rules
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	src
+SOURCE		:=	src scetool
 INCLUDE		:=	inc
 DATA		:=	data
-LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm
+LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -l:libz.a
 
 TITLE		:=	Refresher PS3
 APPID		:=	REFRESHER
 CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 PKGFILES	:=	release
 
-CFLAGS		+= -Og -g -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib
-CXXFLAGS	+= -Og -g -Wall
+CFLAGS		+= -O2 -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib
+CXXFLAGS	+= -O2 -Wall -Wno-write-strings -Wno-format
 
 LIBPATHS	:= -L$(PORTLIBS)/lib
 
@@ -31,7 +31,7 @@ export BUILDDIR	:=	$(CURDIR)/$(BUILD)
 export DEPSDIR	:=	$(BUILDDIR)
 
 CFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.c)))
-CXXFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.cpp)))
+CXXFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.cpp)))				
 SFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.S)))
 BINFILES	:= $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.bin)))
 VCGFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.vcg)))
