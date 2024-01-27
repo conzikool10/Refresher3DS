@@ -93,6 +93,56 @@ typedef struct state_t
     game_list_entry *games;
 } state_t;
 
+int handleControllerInput(state_t *state, bool *isPadConnected)
+{
+    padInfo2 padInfo;
+
+    // Get the pad info
+    if (ioPadGetInfo2(&padInfo) != 0)
+    {
+        SDL_Log("Unable to get pad info");
+        return -1;
+    }
+
+    // If it claims there is a pad connected
+    if (padInfo.port_status[0])
+    {
+        padData data;
+
+        // Try to get the pad data
+        if (ioPadGetData(0, &data) == 0)
+        {
+            // If the user presses down, increment the selection
+            if (data.BTN_DOWN && !state->lastDown)
+            {
+                state->selection++;
+                if (state->selection >= state->gameCount)
+                    state->selection = 0;
+            }
+
+            // If the user presses up, decrement the selection
+            if (data.BTN_UP && !state->lastUp)
+            {
+                state->selection--;
+                if (state->selection < 0)
+                    state->selection = state->gameCount - 1;
+            }
+
+            // Update our lastDown and lastUp variables
+            state->lastDown = data.BTN_DOWN;
+            state->lastUp = data.BTN_UP;
+
+            // Clear the pad buffer
+            ioPadClearBuf(0);
+
+            // Set the pad as definitely connected
+            (*isPadConnected) = true;
+        }
+    }
+
+    return 0;
+}
+
 int main()
 {
     // Initialize SDL with Video support
@@ -217,52 +267,4 @@ int main()
     SDL_Quit();
 
     return 0;
-}
-
-int handleControllerInput(state_t *state, bool *isPadConnected)
-{
-    padInfo2 padInfo;
-
-    // Get the pad info
-    if (ioPadGetInfo2(&padInfo) != 0)
-    {
-        SDL_Log("Unable to get pad info");
-        return -1;
-    }
-
-    // If it claims there is a pad connected
-    if (padInfo.port_status[0])
-    {
-        padData data;
-
-        // Try to get the pad data
-        if (ioPadGetData(0, &data) == 0)
-        {
-            // If the user presses down, increment the selection
-            if (data.BTN_DOWN && !state->lastDown)
-            {
-                state->selection++;
-                if (state->selection >= state->gameCount)
-                    state->selection = 0;
-            }
-
-            // If the user presses up, decrement the selection
-            if (data.BTN_UP && !state->lastUp)
-            {
-                state->selection--;
-                if (state->selection < 0)
-                    state->selection = state->gameCount - 1;
-            }
-
-            // Update our lastDown and lastUp variables
-            state->lastDown = data.BTN_DOWN;
-            state->lastUp = data.BTN_UP;
-
-            // Clear the pad buffer
-            ioPadClearBuf(0);
-
-            // Set the pad as definitely connected
-            (*isPadConnected) = true;
-        }
-    }
 }
