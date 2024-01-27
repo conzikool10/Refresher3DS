@@ -1,4 +1,9 @@
+#include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
+
+#ifndef GAME_LIST_H
+#define GAME_LIST_H
 
 typedef struct game_list_entry
 {
@@ -25,3 +30,5 @@ inline void game_list_entry_destroy(game_list_entry *entry)
     free(entry->path);
     free(entry);
 }
+
+#endif
