@@ -188,6 +188,10 @@ void patch_game(void *arg)
     char eboot_bak_path[256] = {0};
     snprintf(eboot_bak_path, 256, "%s/USRDIR/EBOOT.BIN.BAK", state->selected_game->path);
 
+    // Get the path to the patched EBOOT.BIN.PATCHED
+    char patched_eboot_path[256] = {0};
+    snprintf(patched_eboot_path, 256, "%s/USRDIR/EBOOT.BIN.PATCHED", state->selected_game->path);
+
     SDL_Log("Backing up EBOOT.BIN if it doesn't exist");
 
     // If the backup EBOOT does not exist
@@ -406,6 +410,40 @@ void patch_game(void *arg)
             }
         }
     }
+
+    // Write out the patched EBOOT.ELF to EBOOT.BIN.PATCHED
+    FILE *eboot_patched = fopen(patched_eboot_path, "wb");
+    ASSERT_NONZERO(eboot_patched, "Unable to open patched EBOOT.BIN");
+
+    SDL_Log("Writing patched EBOOT.BIN.PATCHED");
+
+    int to_write = eboot_decrypted_size;
+    while (to_write > 0)
+    {
+        int written = fwrite(eboot_decrypted_data + (eboot_decrypted_size - to_write), sizeof(uint8_t), to_write, eboot_patched);
+        if (written <= 0)
+        {
+            SDL_Log("Unable to write to patched EBOOT.BIN");
+            exit(1);
+        }
+
+        to_write -= written;
+    }
+
+    // Close the patched EBOOT.BIN
+    ASSERT_ZERO(fclose(eboot_patched), "Unable to close patched EBOOT.BIN");
+
+    SDL_Log("Encrypting");
+
+    // Set the state to done
+    MUTEX_SCOPE(
+        state->patching_info.mutex,
+        {
+            state->patching_info.state = PATCHING_STATE_ENCRYPTING;
+        });
+
+    // Encrypt the patched EBOOT.BIN
+    frontend_encrypt(patched_eboot_path, eboot_path);
 
     // Set the state to done
     MUTEX_SCOPE(
