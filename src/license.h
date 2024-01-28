@@ -1,0 +1,1 @@
+char *find_license_from_all_users(char *content_id);

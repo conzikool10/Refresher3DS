@@ -1,0 +1,1 @@
+int copy_file(const char *to, const char *from);

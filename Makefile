@@ -7,7 +7,7 @@ include $(PSL1GHT)/ppu_rules
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	src scetool
+SOURCE		:=	src scetool tre/lib
 INCLUDE		:=	inc
 DATA		:=	data
 LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -l:libz.a
@@ -17,8 +17,8 @@ APPID		:=	REFRESHER
 CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 PKGFILES	:=	release
 
-CFLAGS		+= -O2 -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib
-CXXFLAGS	+= -O2 -Wall -Wno-write-strings -Wno-format
+CFLAGS		+= -O2 -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib -I$(CURDIR)/../tre/local_includes
+CXXFLAGS	+= -O2 -Wall -Wno-write-strings -Wno-format -Itre/local_includes
 
 LIBPATHS	:= -L$(PORTLIBS)/lib
 

@@ -1,3 +1,6 @@
 [submodule "scetool"]
 	path = scetool
 	url = https://github.com/LittleBigRefresh/scetool
+[submodule "tre"]
+	path = tre
+	url = https://github.com/Beyley/tre
