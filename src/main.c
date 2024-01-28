@@ -20,6 +20,7 @@
 #include "scetool.h"
 #include "copyfile.h"
 #include "license.h"
+#include "digest.h"
 
 typedef enum STATE_SCENE
 {
@@ -205,10 +206,12 @@ void patch_game(void *arg)
 
     SDL_Log("Set encrypt options");
 
+    // If this is an NPDRM game, set the NPDRM encrypt options
     if (state->selected_game->title_id[0] == 'N')
-        set_disc_encrypt_options();
-    else
         set_npdrm_encrypt_options();
+    // Otherwise, set the disc encrypt options
+    else
+        set_disc_encrypt_options();
 
     // Set the state to decrypting
     MUTEX_SCOPE(
@@ -311,23 +314,24 @@ void patch_game(void *arg)
     // Close the decrypted EBOOT.BIN
     ASSERT_ZERO(fclose(eboot_decrypted), "Unable to close decrypted EBOOT.BIN");
 
-    char *regex = "^https?[^\\x00]//([0-9a-zA-Z.:].*)/?([0-9a-zA-Z_]*)$";
+    char *url_regex_str = "^https?[^\\x00]//([0-9a-zA-Z.:].*)/?([0-9a-zA-Z_]*)$";
 
-    regex_t compiled_regex;
-    ASSERT_ZERO(tre_regncomp(&compiled_regex, regex, strlen(regex), REG_EXTENDED), "Unable to compile regex");
+    regex_t url_regex;
+    // Compile the URL regex
+    ASSERT_ZERO(tre_regncomp(&url_regex, url_regex_str, strlen(url_regex_str), REG_EXTENDED), "Unable to compile url regex");
 
     // Iterate over ever 4 byte chunk in the decrypted EBOOT.BIN
     for (size_t i = 0; i < eboot_decrypted_size; i += 4)
     {
+        char *str = (char *)eboot_decrypted_data + i;
+
         if (memcmp(eboot_decrypted_data + i, "http", 4) == 0)
         {
-            char *url = (char *)eboot_decrypted_data + i;
-
-            SDL_Log("Found URL at address %x, %s", i, url);
+            SDL_Log("Found URL at address %x, %s", i, str);
 
             // find a match
             regmatch_t match[1];
-            int ret = tre_regexec(&compiled_regex, url, 1, match, 0);
+            int ret = tre_regexec(&url_regex, str, 1, match, 0);
 
             if (ret == REG_NOMATCH)
             {
@@ -336,8 +340,8 @@ void patch_game(void *arg)
             else if (ret != 0)
             {
                 char err_str[1024] = {0};
-                tre_regerror(ret, &compiled_regex, err_str, 1024);
-                SDL_Log("Matching failed for some reason! err: %s", err_str);
+                tre_regerror(ret, &url_regex, err_str, 1024);
+                SDL_Log("Matching url failed for some reason! err: %s", err_str);
                 exit(1);
             }
             else
@@ -345,13 +349,63 @@ void patch_game(void *arg)
                 // If there was a match
                 if (match[0].rm_so != -1)
                 {
-                    SDL_Log("Matched URL: %.*s", match[0].rm_eo - match[0].rm_so, url + match[0].rm_so);
+                    // Ignore format strings
+                    if (strstr(str, "\%") != NULL)
+                        continue;
+
+                    if (strlen(state->selected_server->url) > strlen(str))
+                    {
+                        // Set the state to error
+                        MUTEX_SCOPE(
+                            state->patching_info.mutex,
+                            {
+                                state->patching_info.state = PATCHING_STATE_ERROR;
+                                state->patching_info.is_running = false;
+                                state->patching_info.last_error = "URL too long to fit in EBOOT.";
+                            });
+
+                        // Get outta here
+                        goto out;
+                    }
+
+                    SDL_Log("Found valid URL at address %x, %s. Patching...", i, str);
+
+                    // Copy the new URL in
+                    strcpy(str, state->selected_server->url);
+                }
+            }
+        }
+        // If we find the word "cookie", then we know that the digest key is somewhere near it
+        else if (memcmp(eboot_decrypted_data + i, "cookie", 7) == 0)
+        {
+            SDL_Log("Found cookie at address %x, %s", i, str);
+
+            const int digest_key_range = 1000;
+
+            size_t start = i - digest_key_range;
+            size_t end = i + digest_key_range;
+
+            for (size_t j = start; j < end; j += 1)
+            {
+                char *search_str = (char *)eboot_decrypted_data + j;
+
+                int len = strlen(search_str);
+                if (len != 18)
+                {
+                    j += len;
+                    continue;
+                }
+
+                if (valid_digest(search_str))
+                {
+                    SDL_Log("Found digest at address %x, %s. Patching...", j, search_str);
+
+                    // Copy the new digest in
+                    strcpy(search_str, "CustomServerDigest");
                 }
             }
         }
     }
-
-    tre_regfree(&compiled_regex);
 
     // Set the state to done
     MUTEX_SCOPE(
@@ -361,6 +415,9 @@ void patch_game(void *arg)
             state->patching_info.is_running = false;
             state->patching_info.last_error = NULL;
         });
+
+out:
+    tre_regfree(&url_regex);
 
     return;
 }
