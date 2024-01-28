@@ -24,6 +24,7 @@
 
 typedef enum STATE_SCENE
 {
+    STATE_SCENE_SELECT_NONE = 0,
     STATE_SCENE_SELECT_GAME,
     STATE_SCENE_SELECT_SERVER,
     STATE_SCENE_PATCHING,
@@ -106,6 +107,7 @@ typedef struct state_t
     uint32_t game_count;
     game_list_entry *games;
     server_list_entry *servers;
+    int server_count;
     STATE_SCENE scene;
     bool cross_pressed;
     bool circle_pressed;
@@ -113,6 +115,8 @@ typedef struct state_t
     server_list_entry *selected_server;
     patching_info_t patching_info;
     char idps[16];
+    // Wrap menu after this many times
+    int wrap_count;
 } state_t;
 
 int handleControllerInput(state_t *state, bool *is_pad_connected)
@@ -134,7 +138,7 @@ int handleControllerInput(state_t *state, bool *is_pad_connected)
             if (data.BTN_DOWN && !state->last_down)
             {
                 state->selection++;
-                if (state->selection >= state->game_count)
+                if (state->selection >= state->wrap_count)
                     state->selection = 0;
             }
 
@@ -143,7 +147,7 @@ int handleControllerInput(state_t *state, bool *is_pad_connected)
             {
                 state->selection--;
                 if (state->selection < 0)
-                    state->selection = state->game_count - 1;
+                    state->selection = state->wrap_count - 1;
             }
 
             // If the user presses cross, set the crossPressed flag
@@ -179,6 +183,9 @@ int handleControllerInput(state_t *state, bool *is_pad_connected)
 void patch_game(void *arg)
 {
     state_t *state = (state_t *)arg;
+
+    // Re-Init libscetool
+    ASSERT_ZERO(libscetool_init(), "Unable to initialize libscetool");
 
     // Get the path to the EBOOT.BIN
     char eboot_path[256] = {0};
@@ -357,7 +364,14 @@ void patch_game(void *arg)
                     if (strstr(str, "\%") != NULL)
                         continue;
 
-                    if (strlen(state->selected_server->url) > strlen(str))
+                    // Count null bytes after str until next non-null byte
+                    int null_bytes = 0;
+                    for (int i = strlen(str); str[i] == '\0'; i++)
+                    {
+                        null_bytes++;
+                    }
+
+                    if (strlen(state->selected_server->url) > (strlen(str) + null_bytes - 1))
                     {
                         // Set the state to error
                         MUTEX_SCOPE(
@@ -373,6 +387,9 @@ void patch_game(void *arg)
                     }
 
                     SDL_Log("Found valid URL at address %x, %s. Patching...", i, str);
+
+                    // Null out the original string
+                    memset(str, '\0', strlen(str));
 
                     // Copy the new URL in
                     strcpy(str, state->selected_server->url);
@@ -477,8 +494,10 @@ void switch_scene(state_t *state, STATE_SCENE scene)
     switch (scene)
     {
     case STATE_SCENE_SELECT_GAME:
+        state->wrap_count = state->game_count;
         break;
     case STATE_SCENE_SELECT_SERVER:
+        state->wrap_count = state->server_count;
         break;
     case STATE_SCENE_PATCHING:
         state->patching_info.is_running = true;
@@ -498,6 +517,19 @@ void switch_scene(state_t *state, STATE_SCENE scene)
     state->scene = scene;
     state->selection = 0;
 }
+
+// a bit hacky but idc
+#define PATCHING_STATE_CASE(check_state)                                                 \
+    if (state.patching_info.state == check_state)                                        \
+    {                                                                                    \
+        snprintf(display_name, 256, ">>> %s <<<", get_patching_state_name(check_state)); \
+    }                                                                                    \
+    else                                                                                 \
+    {                                                                                    \
+        snprintf(display_name, 256, "%s", get_patching_state_name(check_state));         \
+    }                                                                                    \
+    font_print_to_renderer(font, display_name, &font_state);                             \
+    font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
 int main()
 {
@@ -531,14 +563,16 @@ int main()
     SDL_Log("IDPS: %x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x", state.idps[0], state.idps[1], state.idps[2], state.idps[3], state.idps[4], state.idps[5], state.idps[6], state.idps[7], state.idps[8], state.idps[9], state.idps[10], state.idps[11], state.idps[12], state.idps[13], state.idps[14], state.idps[15]);
     SDL_Log("PSID: %x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x", psid[0], psid[1], psid[2], psid[3], psid[4], psid[5], psid[6], psid[7], psid[8], psid[9], psid[10], psid[11], psid[12], psid[13], psid[14], psid[15]);
 
-    // Set the initial state to game selection
-    state.scene = STATE_SCENE_SELECT_GAME;
-
     // Iterate over the installed games, and get their info
     ASSERT_ZERO(iterate_games("/dev_hdd0/game", &state.games, &state.game_count), "Unable to iterate games");
 
     state.servers = server_list_entry_create("Refresh", "http://refresh.jvyden.xyz:2095/lbp", true);
     state.servers->next = server_list_entry_create("Beyley's Desktop", "http://192.168.69.100:10061/lbp", true);
+
+    state.server_count = 2;
+
+    // Set the initial state to game selection
+    switch_scene(&state, STATE_SCENE_SELECT_GAME);
 
     sys_lwmutex_attr_t mutex_attr = {
         .name = "PATCHING",
@@ -687,18 +721,6 @@ int main()
         }
         case STATE_SCENE_PATCHING:
         {
-            // a bit hacky but idc
-#define PATCHING_STATE_CASE(check_state)                                                 \
-    if (state.patching_info.state == check_state)                                        \
-    {                                                                                    \
-        snprintf(display_name, 256, ">>> %s <<<", get_patching_state_name(check_state)); \
-    }                                                                                    \
-    else                                                                                 \
-    {                                                                                    \
-        snprintf(display_name, 256, "%s", get_patching_state_name(check_state));         \
-    }                                                                                    \
-    font_print_to_renderer(font, display_name, &font_state);                             \
-    font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
             MUTEX_SCOPE(state.patching_info.mutex,
                         {
@@ -716,6 +738,11 @@ int main()
                             {
                                 switch_scene(&state, STATE_SCENE_ERROR);
                             }
+
+                            if (state.patching_info.state == PATCHING_STATE_DONE && !state.patching_info.is_running)
+                            {
+                                switch_scene(&state, STATE_SCENE_DONE_PATCHING);
+                            }
                         });
 
             can_interact = false;
@@ -730,8 +757,11 @@ int main()
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
+            char display[1024] = {0};
+            snprintf(display, 1024, "Patched %s to %s! Just open your game and it should work!", state.selected_game->title, state.selected_server->name);
+
             // Draw the display name
-            font_print_to_renderer(font, "TODO", &font_state);
+            font_print_to_renderer(font, display, &font_state);
             // Move the text down by the height of the text
             font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             break;
