@@ -7,17 +7,17 @@ include $(PSL1GHT)/ppu_rules
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	src scetool tre/lib
+SOURCE		:=	src scetool tre/lib cJSON
 INCLUDE		:=	inc
 DATA		:=	data
-LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -l:libz.a
+LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -lhttp -lsysmodule -lssl -lnet -l:libz.a
 
 TITLE		:=	Refresher PS3
 APPID		:=	REFRESHER
 CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
 PKGFILES	:=	release
 
-CFLAGS		+= -O2 -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib -I$(CURDIR)/../tre/local_includes
+CFLAGS		+= -O2 -Wall -std=gnu99 $(LIBPSL1GHT_INC) $(LIBPSL1GHT_LIB) -I$(PORTLIBS)/include -L$(PORTLIBS)/lib -I$(CURDIR)/../tre/local_includes -I$(CURDIR)/../cJSON
 CXXFLAGS	+= -O2 -Wall -Wno-write-strings -Wno-format -Itre/local_includes
 
 LIBPATHS	:= -L$(PORTLIBS)/lib
@@ -35,6 +35,9 @@ CXXFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.S)))
 BINFILES	:= $(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.bin)))
 VCGFILES	:= $(foreach dir,$(SOURCE),$(notdir $(wildcard $(dir)/*.vcg)))
+
+# Filter out test.c from cJSON, as it tries to define main()
+CFILES := $(filter-out test.c, $(CFILES))
 
 ifeq ($(strip $(CXXFILES)),)
 export LD	:=	$(CC)

@@ -9,6 +9,7 @@
 #include <sys/mutex.h>
 #include <unistd.h>
 #include <tre.h>
+#include <cJSON.h>
 
 #include "endian.h"
 #include "sdl2_picofont.h"
@@ -21,6 +22,7 @@
 #include "copyfile.h"
 #include "license.h"
 #include "digest.h"
+#include "autodiscover.h"
 
 typedef enum STATE_SCENE
 {
@@ -537,6 +539,9 @@ void switch_scene(state_t *state, STATE_SCENE scene)
 
 int main()
 {
+    autodiscover_t autodiscover;
+    ASSERT_ZERO(autodiscover_init(&autodiscover), "Unable to initialize autodiscover");
+
     // Init libscetool
     ASSERT_ZERO(libscetool_init(), "Unable to initialize libscetool");
 
