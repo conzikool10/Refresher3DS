@@ -450,6 +450,8 @@ void patch_game(void *arg)
     // Close the patched EBOOT.BIN
     ASSERT_ZERO(fclose(eboot_patched), "Unable to close patched EBOOT.BIN");
 
+    free(eboot_decrypted_data);
+
     SDL_Log("Encrypting");
 
     // Set the state to done
@@ -509,6 +511,8 @@ void switch_scene(state_t *state, STATE_SCENE scene)
 
         break;
     case STATE_SCENE_DONE_PATCHING:
+        break;
+    case STATE_SCENE_SELECT_NONE:
         break;
     case STATE_SCENE_ERROR:
         break;
