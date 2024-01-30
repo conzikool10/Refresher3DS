@@ -361,6 +361,7 @@ request_send_fail:
 transaction_creation_fail:
 uri_parse_fail:
     free(uri_pool);
+    free(url);
 
 uri_size_calc_fail:
     ASSERT_ZERO(httpDestroyClient(client), "Failed to destroy HTTP client");
