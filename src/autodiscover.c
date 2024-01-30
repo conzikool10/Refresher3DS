@@ -213,7 +213,7 @@ int autodiscover_execute(autodiscover_t *autodiscover, char *orig_url, char **se
     // Append the autodiscover path
     strcpy(url + url_length + protocol_offset, "/autodiscover");
 
-    SDL_Log("URL: %s", url);
+    SDL_Log("Constructed URL: %s", url);
 
     uint32_t uri_pool_size;
     httpUri uri;

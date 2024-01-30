@@ -6,8 +6,6 @@
 #include "game_list.h"
 #include "assert.h"
 
-#define PATH_MAX 256
-
 int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
 {
     DIR *directory = NULL;
@@ -24,8 +22,8 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
     struct dirent *entry = NULL;
     while ((entry = readdir(directory)) != NULL)
     {
-        char full_path[PATH_MAX] = {0};
-        snprintf(full_path, PATH_MAX, "%s/%s", path, entry->d_name);
+        char full_path[MAXPATHLEN + 2] = {0};
+        snprintf(full_path, MAXPATHLEN + 2, "%s/%s", path, entry->d_name);
 
         if (entry->d_type == DT_DIR)
         {
@@ -38,9 +36,9 @@ int iterate_games(const char *path, game_list_entry **list, uint32_t *count)
 
                 SDL_Log("Found game: %s, full path: %s", entry->d_name, full_path);
 
-                char param_sfo_path[PATH_MAX] = {0};
+                char param_sfo_path[MAXPATHLEN] = {0};
                 // Get the path to the PARAM.SFO file
-                snprintf(param_sfo_path, PATH_MAX, "%s/PARAM.SFO", full_path);
+                snprintf(param_sfo_path, MAXPATHLEN, "%s/PARAM.SFO", full_path);
 
                 // Try to get the title of the game
                 char *title = get_title(param_sfo_path);

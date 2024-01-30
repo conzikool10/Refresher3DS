@@ -6,8 +6,6 @@
 #include "game_list.h"
 #include "assert.h"
 
-#define PATH_MAX 256
-
 #define CONTENT_ID_LENGTH 0x30
 
 char *find_license(char *path, char *content_id)
@@ -19,8 +17,8 @@ char *find_license(char *path, char *content_id)
     struct dirent *entry = NULL;
     while ((entry = readdir(directory)) != NULL)
     {
-        char full_path[PATH_MAX] = {0};
-        snprintf(full_path, PATH_MAX, "%s/%s", path, entry->d_name);
+        char full_path[MAXPATHLEN + 2] = {0};
+        snprintf(full_path, MAXPATHLEN + 2, "%s/%s", path, entry->d_name);
 
         if (entry->d_type == DT_REG)
         {
@@ -68,16 +66,16 @@ char *find_license_from_all_users(char *content_id)
     struct dirent *entry = NULL;
     while ((entry = readdir(directory)) != NULL)
     {
-        char full_path[PATH_MAX] = {0};
-        snprintf(full_path, PATH_MAX, "%s/%s", path, entry->d_name);
+        char full_path[MAXPATHLEN + sizeof "/dev_hdd0/home" + 2] = {0};
+        snprintf(full_path, MAXPATHLEN + sizeof "/dev_hdd0/home" + 2, "%s/%s", path, entry->d_name);
 
         if (entry->d_type == DT_DIR)
         {
             // Skip over . and .. and non-9 character directories
             if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
             {
-                char license_dir_path[PATH_MAX] = {0};
-                snprintf(license_dir_path, PATH_MAX, "%s/exdata", full_path);
+                char license_dir_path[MAXPATHLEN] = {0};
+                snprintf(license_dir_path, MAXPATHLEN, "%s/exdata", full_path);
 
                 char *license = find_license(license_dir_path, content_id);
                 if (license != NULL)
