@@ -93,7 +93,7 @@ int autodiscover_init(autodiscover_t *autodiscover)
         ret = sslCertificateLoader(SSL_LOAD_CERT_ALL, NULL, 0, &cert_size);
         if (ret < 0)
         {
-            SDL_Log("Failed to load SSL certificates: %d", ret);
+            SDL_Log("Failed to load SSL certificate size: %d", ret);
             goto no_cert_size_check;
         }
 
@@ -109,8 +109,8 @@ int autodiscover_init(autodiscover_t *autodiscover)
             goto no_cert_load;
         }
 
-        (&autodiscover->ca_list[0])->ptr = autodiscover->cert_buffer;
-        (&autodiscover->ca_list[0])->size = cert_size;
+        autodiscover->ca_list->ptr = autodiscover->cert_buffer;
+        autodiscover->ca_list->size = cert_size;
 
         ret = httpsInit(1, autodiscover->ca_list);
         if (ret < 0)
