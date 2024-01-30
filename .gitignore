@@ -3,3 +3,4 @@ RefresherPS3.elf
 RefresherPS3.fake.self
 RefresherPS3.self
 build/
+*.pkg
