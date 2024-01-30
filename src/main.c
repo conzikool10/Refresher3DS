@@ -6,6 +6,7 @@
 #include <io/pad.h>
 #include <ppu-lv2.h>
 #include <unistd.h>
+#include <sysutil/sysutil.h>
 
 #include "endian.h"
 #include "sdl2_picofont.h"
@@ -17,6 +18,9 @@
 #include "autodiscover.h"
 #include "types.h"
 #include "patching.h"
+#include "save_manager.h"
+#include "unicode.h"
+#include "osk.h"
 
 int handleControllerInput(state_t *state, bool *is_pad_connected)
 {
@@ -87,6 +91,10 @@ void switch_scene(state_t *state, STATE_SCENE scene)
             ASSERT_ZERO(sysThreadYield(), "Unable to yield thread");
         }
     }
+    else if (state->scene == STATE_SCENE_ERROR)
+    {
+        state->last_error = NULL;
+    }
 
     switch (scene)
     {
@@ -94,7 +102,12 @@ void switch_scene(state_t *state, STATE_SCENE scene)
         state->wrap_count = state->game_count;
         break;
     case STATE_SCENE_SELECT_SERVER:
-        state->wrap_count = state->server_count;
+        // Plus one for the "manage servers" option
+        state->wrap_count = state->server_count + 1;
+        break;
+    case STATE_SCENE_MANAGE_SERVERS:
+        state->wrap_count = state->server_count + 1;
+
         break;
     case STATE_SCENE_PATCHING:
         state->patching_info.is_running = true;
@@ -165,10 +178,12 @@ int main()
     // Iterate over the installed games, and get their info
     ASSERT_ZERO(iterate_games("/dev_hdd0/game", &state.games, &state.game_count), "Unable to iterate games");
 
+    // Create the default server entry of production refresh
     state.servers = server_list_entry_create("Refresh", "http://refresh.jvyden.xyz:2095/lbp", true);
-    state.servers->next = server_list_entry_create("Beyley's Desktop", "http://192.168.69.100:10061/lbp", true);
-
-    state.server_count = 2;
+    // Load the user's saved entries
+    state.servers->next = load_saved_servers();
+    // Count the number of servers
+    state.server_count = count_server_list_entries(state.servers);
 
     // Set the initial state to game selection
     switch_scene(&state, STATE_SCENE_SELECT_GAME);
@@ -190,11 +205,16 @@ int main()
     state.patching_info.thread = (sys_ppu_thread_t *)malloc(sizeof(sys_ppu_thread_t));
     ASSERT_NONZERO(state.patching_info.thread, "Unable to allocate memory for thread");
 
+    // Initialize the OSK
+    osk_setup(&state);
+
     // Loop until the user closes the app
     SDL_Event ev;
     bool quit = false;
     while (!quit)
     {
+        sysUtilCheckCallback();
+
         // Poll all the new events
         while (SDL_PollEvent(&ev))
         {
@@ -288,6 +308,12 @@ int main()
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
             }
 
+            if (state.cross_pressed && state.selection == state.server_count)
+            {
+                switch_scene(&state, STATE_SCENE_MANAGE_SERVERS);
+                break;
+            }
+
             // Draw the server list
             server_list_entry *entry = state.servers;
             int i = 0;
@@ -316,11 +342,109 @@ int main()
                 i++;
             }
 
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+            font_print_to_renderer(
+                font,
+                state.selection == state.server_count ? ">>> Manage Servers" : "Manage Servers",
+                &font_state);
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+            break;
+        }
+        case STATE_SCENE_MANAGE_SERVERS:
+        {
+            // If the user presses circle, switch back to the server selection scene
+            if (state.circle_pressed)
+            {
+                switch_scene(&state, STATE_SCENE_SELECT_SERVER);
+                break;
+            }
+
+            font_print_to_renderer(font, "Select a server to delete it.", &font_state);
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h * 2;
+
+            state.wrap_count = state.server_count + 2;
+
+            // Force state.selection to not be on the default server.
+            if (state.selection == 0)
+                state.selection = 1;
+
+            // Draw the server list
+            server_list_entry *last_entry = NULL;
+            server_list_entry *entry = state.servers;
+            int i = 0;
+            while (entry != NULL)
+            {
+                // If the user presses cross on the selected game, delete that game
+                if (state.selection > 0 && state.selection == i && state.cross_pressed)
+                {
+                    // Delete that server from the list
+                    if (last_entry == NULL)
+                    {
+                        state.servers = entry->next;
+                    }
+                    else
+                    {
+                        last_entry->next = entry->next;
+                    }
+
+                    server_list_entry *entry_to_free = entry;
+
+                    entry = entry_to_free->next;
+                    i++;
+
+                    // Free the memory
+                    server_list_entry_destroy(entry_to_free);
+
+                    // Save the new list
+                    if (save_servers(state.servers) != 0)
+                    {
+                        // If it fails, switch to the error scene
+                        SDL_Log("Unable to save servers");
+                        state.last_error = "Unable to save servers";
+                        switch_scene(&state, STATE_SCENE_ERROR);
+
+                        break;
+                    }
+
+                    continue;
+                }
+
+                char display_name[256] = {0};
+
+                // Make a pretty display name
+                snprintf(display_name, 256, "%s%s (%s)", i == state.selection ? ">>> " : "", entry->name, entry->url);
+
+                // Draw the display name
+                font_print_to_renderer(font, display_name, &font_state);
+                // Move the text down by the height of the text
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+                // Move to the next item in the list
+                entry = entry->next;
+
+                i++;
+
+                last_entry = entry;
+            }
+
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+            font_print_to_renderer(
+                font,
+                state.selection == state.server_count ? ">>> Create new server using Autodiscover" : "Create new server using Autodiscover",
+                &font_state);
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+            font_print_to_renderer(
+                font,
+                state.selection == state.server_count + 1 ? ">>> Create new server manually" : "Create new server manually",
+                &font_state);
+            font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
             break;
         }
         case STATE_SCENE_PATCHING:
         {
-
             MUTEX_SCOPE(state.patching_info.mutex,
                         {
                             char display_name[256] = {0};
@@ -354,6 +478,7 @@ int main()
             if (state.circle_pressed)
             {
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
+                break;
             }
 
             char display[1024] = {0};
@@ -371,6 +496,7 @@ int main()
             if (state.circle_pressed)
             {
                 switch_scene(&state, STATE_SCENE_SELECT_GAME);
+                break;
             }
 
             // If there was a patching error
@@ -380,6 +506,13 @@ int main()
                 font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
                 font_print_to_renderer(font, state.patching_info.last_error, &font_state);
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+            }
+
+            // If there was a general error
+            if (state.last_error != NULL)
+            {
+                font_print_to_renderer(font, state.last_error, &font_state);
                 font_state.y += FONT_CHAR_HEIGHT * font_state.h;
             }
 

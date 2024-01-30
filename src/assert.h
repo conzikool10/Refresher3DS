@@ -1,7 +1,6 @@
-#include <SDL2/SDL.h>
+#pragma once
 
-#ifndef ASSERT_H
-#define ASSERT_H
+#include <SDL2/SDL.h>
 
 #define ASSERT_ZERO(condition, message)                                                          \
     if ((condition) != 0)                                                                        \
@@ -32,5 +31,3 @@
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "SDL Error: %s\n", SDL_GetError());           \
         exit(1);                                                                                 \
     }
-
-#endif

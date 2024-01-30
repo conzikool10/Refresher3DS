@@ -20,3 +20,16 @@ void server_list_entry_destroy(server_list_entry *entry)
     free(entry->url);
     free(entry);
 }
+
+int count_server_list_entries(server_list_entry *head)
+{
+    int count = 0;
+    server_list_entry *current = head;
+    while (current != NULL)
+    {
+        count++;
+
+        current = current->next;
+    }
+    return count;
+}

@@ -18,4 +18,6 @@ server_list_entry *server_list_entry_create(char *name, char *url, bool patch_di
 
 void server_list_entry_destroy(server_list_entry *entry);
 
+int count_server_list_entries(server_list_entry *head);
+
 #endif

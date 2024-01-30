@@ -1,14 +1,19 @@
+#pragma once
+
 #include <sys/thread.h>
 #include <sys/mutex.h>
 
 #include "game_list.h"
 #include "server_list.h"
 
+#define OSK_TEXT_BUFFER_LENGTH 256
+
 typedef enum STATE_SCENE
 {
     STATE_SCENE_SELECT_NONE = 0,
     STATE_SCENE_SELECT_GAME,
     STATE_SCENE_SELECT_SERVER,
+    STATE_SCENE_MANAGE_SERVERS,
     STATE_SCENE_PATCHING,
     STATE_SCENE_DONE_PATCHING,
     STATE_SCENE_ERROR
@@ -22,6 +27,8 @@ inline char *get_scene_name(STATE_SCENE scene)
         return "Select Game";
     case STATE_SCENE_SELECT_SERVER:
         return "Select Server";
+    case STATE_SCENE_MANAGE_SERVERS:
+        return "Manage Servers";
     case STATE_SCENE_PATCHING:
         return "Patching";
     case STATE_SCENE_DONE_PATCHING:
@@ -99,6 +106,8 @@ typedef struct state_t
     char idps[16];
     // Wrap menu after this many times
     int wrap_count;
+    u16 osk_buffer[OSK_TEXT_BUFFER_LENGTH];
+    char *last_error;
 } state_t;
 
 #define MUTEX_SCOPE(mutex, ...)                                    \
