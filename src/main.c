@@ -9,7 +9,6 @@
 #include <sys/mutex.h>
 #include <unistd.h>
 #include <tre.h>
-#include <cJSON.h>
 
 #include "endian.h"
 #include "sdl2_picofont.h"
@@ -541,6 +540,18 @@ int main()
 {
     autodiscover_t autodiscover;
     ASSERT_ZERO(autodiscover_init(&autodiscover), "Unable to initialize autodiscover");
+
+    // char *server_brand = NULL;
+    // char *patch_url = NULL;
+    // bool patch_digest = false;
+    // ASSERT_ZERO(autodiscover_execute(&autodiscover, "http://refresh.jvyden.xyz:2095/", &server_brand, &patch_url, &patch_digest), "Unable to execute autodiscover");
+
+    // SDL_Log("Server brand: %s", server_brand);
+    // SDL_Log("Patch URL: %s", patch_url);
+    // SDL_Log("Patch digest: %d", patch_digest);
+
+    // free(server_brand);
+    // free(patch_url);
 
     // Init libscetool
     ASSERT_ZERO(libscetool_init(), "Unable to initialize libscetool");

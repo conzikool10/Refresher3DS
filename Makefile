@@ -10,7 +10,7 @@ BUILD		:=	build
 SOURCE		:=	src scetool tre/lib cJSON
 INCLUDE		:=	inc
 DATA		:=	data
-LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -lhttp -lsysmodule -lssl -lnet -l:libz.a
+LIBS		:=	-l:libSDL2.a -lio -laudio -lrt -llv2 -lsysutil -lgcm_sys -lrsx -lm -lhttp -lsysmodule -lssl -lnet -lhttputil -l:libz.a
 
 TITLE		:=	Refresher PS3
 APPID		:=	REFRESHER

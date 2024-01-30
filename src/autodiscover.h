@@ -15,3 +15,4 @@ typedef struct autodiscover_t
 } autodiscover_t;
 
 int autodiscover_init(autodiscover_t *autodiscover);
+int autodiscover_execute(autodiscover_t *autodiscover, char *url, char **server_brand, char **patch_url, bool *patch_digest);
