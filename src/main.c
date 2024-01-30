@@ -421,6 +421,108 @@ int main()
                 break;
             }
 
+            // If we are inputting the name
+            if (state.input_state == INPUT_STATE_NAME)
+            {
+                // If the OSK has closed
+                if (!is_osk_running())
+                {
+                    // Get the text from the OSK
+                    char *name = get_utf8_output();
+
+                    // If its null, then the user cancelled
+                    if (name == NULL)
+                    {
+                        state.input_state = INPUT_STATE_NONE;
+
+                        break;
+                    }
+
+                    // Store the name for later
+                    state.input_name = strdup(name);
+
+                    // Set the input state to mark we are now listening for the patch URL
+                    state.input_state = INPUT_STATE_PATCH_URL;
+
+                    osk_open(u"Enter patch URL", u"");
+
+                    break;
+                }
+
+                font_print_to_renderer(
+                    font,
+                    "Waiting for name...",
+                    &font_state);
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+                break;
+            }
+
+            // If we are inputting the URL
+            if (state.input_state == INPUT_STATE_PATCH_URL)
+            {
+                // If the OSK has closed
+                if (!is_osk_running())
+                {
+                    // Get the text from the OSK
+                    char *patch_url = get_utf8_output();
+
+                    // If its null, then the user cancelled
+                    if (patch_url == NULL)
+                    {
+                        free(state.input_name);
+
+                        state.input_state = INPUT_STATE_NONE;
+
+                        break;
+                    }
+
+                    // Create a new entry
+                    server_list_entry *new_entry = server_list_entry_create(state.input_name, patch_url, false);
+
+                    // Add it to the end of the list
+                    server_list_entry *entry = state.servers;
+                    while (true)
+                    {
+                        if (entry->next == NULL)
+                        {
+                            entry->next = new_entry;
+                            break;
+                        }
+
+                        entry = entry->next;
+                    }
+
+                    // Update the server count
+                    state.server_count = count_server_list_entries(state.servers);
+
+                    // Reset the input state
+                    state.input_state = INPUT_STATE_NONE;
+
+                    // Save the new list
+                    if (save_servers(state.servers->next) != 0)
+                    {
+                        // If it fails, switch to the error scene
+                        SDL_Log("Unable to save servers");
+                        state.last_error = "Unable to save servers";
+                        switch_scene(&state, STATE_SCENE_ERROR);
+
+                        break;
+                    }
+
+                    // Free the input name that we stored in the earlier step
+                    free(state.input_name);
+
+                    break;
+                }
+
+                font_print_to_renderer(
+                    font,
+                    "Waiting for patch URL...",
+                    &font_state);
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+                break;
+            }
+
             // If the user presses circle, switch back to the server selection scene
             if (state.circle_pressed)
             {
@@ -519,6 +621,8 @@ int main()
 
             if (!deleted && state.selection == state.server_count + 1 && state.cross_pressed)
             {
+                osk_open(u"Enter name for server", u"");
+                state.input_state = INPUT_STATE_NAME;
             }
 
             break;

@@ -117,6 +117,7 @@ typedef struct state_t
     u16 osk_buffer[OSK_TEXT_BUFFER_LENGTH];
     char *last_error;
     INPUT_STATE input_state;
+    char *input_name;
 } state_t;
 
 #define MUTEX_SCOPE(mutex, ...)                                    \
