@@ -124,3 +124,5 @@ typedef struct state_t
     ASSERT_ZERO(sysLwMutexLock(mutex, 0), "Unable to lock mutex"); \
     __VA_ARGS__;                                                   \
     ASSERT_ZERO(sysLwMutexUnlock(mutex), "Unable to unlock mutex");
+
+extern bool running;

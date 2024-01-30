@@ -21,6 +21,7 @@ void sysutil_exit_callback(u64 status, u64 param, void *usrdata)
     switch (status)
     {
     case SYSUTIL_EXIT_GAME:
+        running = false;
         break;
     case SYSUTIL_DRAW_BEGIN:
     case SYSUTIL_DRAW_END:

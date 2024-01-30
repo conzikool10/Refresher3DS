@@ -129,6 +129,13 @@ void switch_scene(state_t *state, STATE_SCENE scene)
     state->selection = 0;
 }
 
+bool running = true;
+
+static void program_exit_callback()
+{
+    sysUtilUnregisterCallback(SYSUTIL_EVENT_SLOT0);
+}
+
 // a bit hacky but idc
 #define PATCHING_STATE_CASE(check_state)                                                 \
     if (state.patching_info.state == check_state)                                        \
@@ -146,6 +153,8 @@ int main()
 {
     autodiscover_t autodiscover;
     ASSERT_ZERO(autodiscover_init(&autodiscover), "Unable to initialize autodiscover");
+
+    atexit(program_exit_callback);
 
     // Initialize SDL with Video support
     ASSERTSDL_ZERO(SDL_Init(SDL_INIT_VIDEO), "Unable to initialize SDL");
@@ -209,8 +218,7 @@ int main()
 
     // Loop until the user closes the app
     SDL_Event ev;
-    bool quit = false;
-    while (!quit)
+    while (running)
     {
         sysUtilCheckCallback();
 
@@ -221,7 +229,7 @@ int main()
             if (ev.type == SDL_QUIT)
             {
                 // Mark the app to quit on the next loop
-                quit = true;
+                running = false;
             }
         }
 
