@@ -86,6 +86,14 @@ typedef struct patching_info_t
     char *last_error;
 } patching_info_t;
 
+typedef enum INPUT_STATE
+{
+    INPUT_STATE_NONE = 0,
+    INPUT_STATE_AUTODISCOVER_URL,
+    INPUT_STATE_NAME,
+    INPUT_STATE_PATCH_URL,
+} INPUT_STATE;
+
 typedef struct state_t
 {
     int selection;
@@ -108,6 +116,7 @@ typedef struct state_t
     int wrap_count;
     u16 osk_buffer[OSK_TEXT_BUFFER_LENGTH];
     char *last_error;
+    INPUT_STATE input_state;
 } state_t;
 
 #define MUTEX_SCOPE(mutex, ...)                                    \

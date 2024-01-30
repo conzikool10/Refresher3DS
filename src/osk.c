@@ -14,6 +14,7 @@ bool osk_running = false;
 sys_mem_container_t containerid;
 oskCallbackReturnParam outputParam = {0};
 uint8_t utf8_output[OSK_TEXT_BUFFER_LENGTH] = {0};
+bool was_good = false;
 
 void sysutil_exit_callback(u64 status, u64 param, void *usrdata)
 {
@@ -41,6 +42,7 @@ void sysutil_exit_callback(u64 status, u64 param, void *usrdata)
 
         state_t *state = (state_t *)usrdata;
 
+        was_good = outputParam.res == OSK_OK;
         if (outputParam.res == OSK_OK)
         {
             printf("OSK result OK\n");
@@ -102,5 +104,8 @@ bool is_osk_running()
 
 char *get_utf8_output()
 {
+    if (!was_good)
+        return NULL;
+
     return (char *)utf8_output;
 }

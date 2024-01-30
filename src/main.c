@@ -106,7 +106,6 @@ void switch_scene(state_t *state, STATE_SCENE scene)
         state->wrap_count = state->server_count + 1;
         break;
     case STATE_SCENE_MANAGE_SERVERS:
-        state->wrap_count = state->server_count + 1;
 
         break;
     case STATE_SCENE_PATCHING:
@@ -353,6 +352,75 @@ int main()
         }
         case STATE_SCENE_MANAGE_SERVERS:
         {
+            state.wrap_count = state.server_count + 1;
+
+            if (state.input_state == INPUT_STATE_AUTODISCOVER_URL)
+            {
+                if (!is_osk_running())
+                {
+                    char *autodiscover_url = get_utf8_output();
+
+                    if (autodiscover_url == NULL)
+                    {
+                        state.input_state = INPUT_STATE_NONE;
+
+                        break;
+                    }
+
+                    char *server_brand;
+                    char *patch_url;
+                    bool patch_digest;
+                    if (autodiscover_execute(&autodiscover, autodiscover_url, &server_brand, &patch_url, &patch_digest) != 0)
+                    {
+                        SDL_Log("Unable to execute autodiscover");
+                        state.last_error = "Unable to execute autodiscover";
+                        switch_scene(&state, STATE_SCENE_ERROR);
+                        break;
+                    }
+
+                    server_list_entry *new_entry = server_list_entry_create(server_brand, patch_url, patch_digest);
+
+                    server_list_entry *entry = state.servers;
+                    while (true)
+                    {
+                        if (entry->next == NULL)
+                        {
+                            entry->next = new_entry;
+                            break;
+                        }
+
+                        entry = entry->next;
+                    }
+
+                    state.server_count = count_server_list_entries(state.servers);
+
+                    free(server_brand);
+                    free(patch_url);
+
+                    state.input_state = INPUT_STATE_NONE;
+
+                    // Save the new list
+                    if (save_servers(state.servers->next) != 0)
+                    {
+                        // If it fails, switch to the error scene
+                        SDL_Log("Unable to save servers");
+                        state.last_error = "Unable to save servers";
+                        switch_scene(&state, STATE_SCENE_ERROR);
+
+                        break;
+                    }
+
+                    break;
+                }
+
+                font_print_to_renderer(
+                    font,
+                    "Waiting for Autodiscover URL...",
+                    &font_state);
+                font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+                break;
+            }
+
             // If the user presses circle, switch back to the server selection scene
             if (state.circle_pressed)
             {
@@ -369,6 +437,9 @@ int main()
             if (state.selection == 0)
                 state.selection = 1;
 
+            // Stores a flag of whether or not a server was deleted this frame.
+            bool deleted = false;
+
             // Draw the server list
             server_list_entry *last_entry = NULL;
             server_list_entry *entry = state.servers;
@@ -378,7 +449,7 @@ int main()
                 // If the user presses cross on the selected game, delete that game
                 if (state.selection > 0 && state.selection == i && state.cross_pressed)
                 {
-                    // Delete that server from the list
+                    // Remove the entry from the list
                     if (last_entry == NULL)
                     {
                         state.servers = entry->next;
@@ -388,16 +459,15 @@ int main()
                         last_entry->next = entry->next;
                     }
 
-                    server_list_entry *entry_to_free = entry;
-
-                    entry = entry_to_free->next;
-                    i++;
+                    state.server_count = count_server_list_entries(state.servers);
 
                     // Free the memory
-                    server_list_entry_destroy(entry_to_free);
+                    server_list_entry_destroy(entry);
+
+                    deleted = true;
 
                     // Save the new list
-                    if (save_servers(state.servers) != 0)
+                    if (save_servers(state.servers->next) != 0)
                     {
                         // If it fails, switch to the error scene
                         SDL_Log("Unable to save servers");
@@ -407,7 +477,7 @@ int main()
                         break;
                     }
 
-                    continue;
+                    break;
                 }
 
                 char display_name[256] = {0};
@@ -420,12 +490,12 @@ int main()
                 // Move the text down by the height of the text
                 font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
+                last_entry = entry;
+
                 // Move to the next item in the list
                 entry = entry->next;
 
                 i++;
-
-                last_entry = entry;
             }
 
             font_state.y += FONT_CHAR_HEIGHT * font_state.h;
@@ -435,11 +505,21 @@ int main()
                 &font_state);
             font_state.y += FONT_CHAR_HEIGHT * font_state.h;
 
+            if (!deleted && state.selection == state.server_count && state.cross_pressed)
+            {
+                osk_open(u"Enter URL for Autodiscover", u"http://refresh.jvyden.xyz:2095/");
+                state.input_state = INPUT_STATE_AUTODISCOVER_URL;
+            }
+
             font_print_to_renderer(
                 font,
                 state.selection == state.server_count + 1 ? ">>> Create new server manually" : "Create new server manually",
                 &font_state);
             font_state.y += FONT_CHAR_HEIGHT * font_state.h;
+
+            if (!deleted && state.selection == state.server_count + 1 && state.cross_pressed)
+            {
+            }
 
             break;
         }
