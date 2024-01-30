@@ -67,7 +67,7 @@ void patch_game(void *arg)
     SDL_Log("Getting content id");
 
     // Get the content id
-    char *content_id = get_content_id(eboot_path);
+    char *content_id = get_content_id(eboot_bak_path);
 
     // If the content id is NULL
     if (content_id == NULL)
@@ -121,8 +121,9 @@ void patch_game(void *arg)
 
     SDL_Log("Decrypting");
 
-    // Decrypt the EBOOT.BIN
-    frontend_decrypt(eboot_path, eboot_decrypted_path);
+    // Decrypt the EBOOT.BIN.BAK
+    // The reason we always decrypt the EBOOT.BIN.BAK is because the EBOOT.BIN might have its digest patched.
+    frontend_decrypt(eboot_bak_path, eboot_decrypted_path);
 
     SDL_Log("Searching");
 
