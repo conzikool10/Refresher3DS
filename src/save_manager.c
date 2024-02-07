@@ -5,7 +5,8 @@
 #include "assert.h"
 #include "server_list.h"
 
-#define SAVE_FILE_PATH "/dev_hdd0/refresher_servers.json"
+#define GAME_DIR "/dev_hdd0/game/REFRESHER/"
+#define SAVE_FILE_PATH GAME_DIR "refresher_servers.json"
 
 #define JSON_NAME_KEY "name"
 #define JSON_URL_KEY "url"
@@ -13,6 +14,14 @@
 
 server_list_entry *load_saved_servers()
 {
+    // If the game dir does not exist, then create it
+    if (access(GAME_DIR, F_OK) != 0)
+    {
+        SDL_Log("Game dir does not exist, creating it");
+
+        ASSERT_ZERO(mkdir(GAME_DIR, 0777), "Unable to create game dir");
+    }
+
     // If the save file does not exist, then create it
     if (access(SAVE_FILE_PATH, F_OK) != 0)
     {
