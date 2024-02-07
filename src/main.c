@@ -32,7 +32,7 @@ int handleControllerInput(state_t *state, bool *is_pad_connected)
     // If it claims there is a pad connected
     if (pad_info.port_status[0])
     {
-        padData data;
+        padData data = {0};
 
         // Try to get the pad data
         if (ioPadGetData(0, &data) == 0)
@@ -160,14 +160,23 @@ int main()
     ASSERTSDL_ZERO(SDL_Init(SDL_INIT_VIDEO), "Unable to initialize SDL");
 
     // Create a new window
-    SDL_Window *window = SDL_CreateWindow("Hello World!", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 1280, 720, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+    SDL_Window *window = SDL_CreateWindow(
+        "Hello World!",
+        SDL_WINDOWPOS_UNDEFINED,
+        SDL_WINDOWPOS_UNDEFINED,
+        1280,
+        720,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     ASSERTSDL_NONZERO(window, "Unable to create window");
 
     // Initialize the pad
     ASSERT_ZERO(ioPadInit(1), "Unable to initialize pad");
 
     // Create a new renderer
-    SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Renderer *renderer = SDL_CreateRenderer(
+        window,
+        -1,
+        SDL_RENDERER_SOFTWARE);
 
     // Initialize our font renderer
     font_ctx *font = font_startup(renderer);
