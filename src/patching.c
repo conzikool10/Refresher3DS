@@ -20,9 +20,9 @@ void patch_game(void *arg)
     char eboot_path[256] = {0};
     snprintf(eboot_path, 256, "%s/USRDIR/EBOOT.BIN", state->selected_game->path);
 
-    // Get the path to the EBOOT.BIN.BAK
-    char eboot_bak_path[256] = {0};
-    snprintf(eboot_bak_path, 256, "%s/USRDIR/EBOOT.BIN.BAK", state->selected_game->path);
+    // Get the path to the EBOOT.BIN.ORIG
+    char eboot_backup_path[256] = {0};
+    snprintf(eboot_backup_path, 256, "%s/USRDIR/EBOOT.BIN.ORIG", state->selected_game->path);
 
     // Get the path to the patched EBOOT.BIN.PATCHED
     char patched_eboot_path[256] = {0};
@@ -31,7 +31,7 @@ void patch_game(void *arg)
     SDL_Log("Backing up EBOOT.BIN if it doesn't exist");
 
     // If the backup EBOOT does not exist
-    if (access(eboot_bak_path, F_OK) != 0)
+    if (access(eboot_backup_path, F_OK) != 0)
     {
         // Set the state to backing up
         MUTEX_SCOPE(
@@ -40,8 +40,8 @@ void patch_game(void *arg)
                 state->patching_info.state = PATCHING_STATE_BACKING_UP;
             });
 
-        // Copy the EBOOT.BIN to EBOOT.BIN.BAK
-        ASSERT_ZERO(copy_file(eboot_bak_path, eboot_path), "Unable to copy EBOOT.BIN to EBOOT.BIN.BAK");
+        // Copy the EBOOT.BIN to EBOOT.BIN.ORIG
+        ASSERT_ZERO(copy_file(eboot_backup_path, eboot_path), "Unable to copy EBOOT.BIN to EBOOT.BIN.ORIG");
     }
 
     SDL_Log("Set encrypt options");
@@ -67,7 +67,7 @@ void patch_game(void *arg)
     SDL_Log("Getting content id");
 
     // Get the content id
-    char *content_id = get_content_id(eboot_bak_path);
+    char *content_id = get_content_id(eboot_backup_path);
 
     // If the content id is NULL
     if (content_id == NULL)
@@ -94,36 +94,40 @@ void patch_game(void *arg)
     char eboot_decrypted_path[256] = {0};
     snprintf(eboot_decrypted_path, 256, "%s/USRDIR/EBOOT.BIN.DEC", state->selected_game->path);
 
-    SDL_Log("Finding license");
-
-    // Find the license
-    char *license_path = find_license_from_all_users(content_id);
-
-    // If the license is NULL
-    if (license_path == NULL)
+    // Only search for license if it's an NPDRM game
+    if (state->selected_game->title_id[0] == 'N')
     {
-        // Set the state to error
-        MUTEX_SCOPE(
-            state->patching_info.mutex,
-            {
-                state->patching_info.state = PATCHING_STATE_ERROR;
-                state->patching_info.is_running = false;
-                state->patching_info.last_error = "Unable to find license.";
-            });
+        SDL_Log("Finding license");
 
-        return;
+        // Find the license
+        char *license_path = find_license_from_all_users(content_id);
+
+        // If the license is NULL
+        if (license_path == NULL)
+        {
+            // Set the state to error
+            MUTEX_SCOPE(
+                state->patching_info.mutex,
+                {
+                    state->patching_info.state = PATCHING_STATE_ERROR;
+                    state->patching_info.is_running = false;
+                    state->patching_info.last_error = "Unable to find license.";
+                });
+
+            return;
+        }
+
+        SDL_Log("Setting license paths");
+
+        set_rif_file_path(license_path);
+        rap_set_directory(license_path);
     }
-
-    SDL_Log("Setting license paths");
-
-    set_rif_file_path(license_path);
-    rap_set_directory(license_path);
 
     SDL_Log("Decrypting");
 
-    // Decrypt the EBOOT.BIN.BAK
-    // The reason we always decrypt the EBOOT.BIN.BAK is because the EBOOT.BIN might have its digest patched.
-    frontend_decrypt(eboot_bak_path, eboot_decrypted_path);
+    // Decrypt the EBOOT.BIN.ORIG
+    // The reason we always decrypt the EBOOT.BIN.ORIG is because the EBOOT.BIN might have its digest patched.
+    frontend_decrypt(eboot_backup_path, eboot_decrypted_path);
 
     SDL_Log("Searching");
 
